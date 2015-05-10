@@ -1,5 +1,7 @@
 package com.example.slewson.liquidlogger;
 
+import android.app.NotificationManager;
+import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,6 +21,7 @@ public class MainActivity extends ActionBarActivity implements LiquidLogAPI.Liqu
     private TextView temp_textview = null;
 
     private Timer timer = null;
+    private boolean notified = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,8 +31,8 @@ public class MainActivity extends ActionBarActivity implements LiquidLogAPI.Liqu
         startCoffeeRefreshTimer();
         //liquidLogAPI.getCoffeeStatus();
 
-        pH_textview = (TextView) findViewById(R.id.ph_label);
-        temp_textview = (TextView) findViewById(R.id.temp_label);
+        pH_textview = (TextView) findViewById(R.id.ph_value);
+        temp_textview = (TextView) findViewById(R.id.temp_value);
     }
 
     @Override
@@ -62,24 +65,48 @@ public class MainActivity extends ActionBarActivity implements LiquidLogAPI.Liqu
                 Log.d("MainActivity", "Getting coffee status");
                 liquidLogAPI.getCoffeeStatus();
             }
-        }, 0, 5000);
+        }, 0, 1500);
     }
 
     private void displayCoffeeStatus(LiquidLogAPI.CoffeeStatus coffeeStatus) {
         String status = "Temp: " + coffeeStatus.getTemp() + ", pH: " + coffeeStatus.getpH();
-        pH_textview.setText("pH: " + coffeeStatus.getpH());
-        temp_textview.setText("temp: " + coffeeStatus.getTemp());
+        pH_textview.setText("" + coffeeStatus.getpH());
+        temp_textview.setText("" + coffeeStatus.getTemp());
 
         Log.d("MainActivity", status);
     }
 
+    private void displayNotification(String message) {
+        NotificationCompat.Builder mBuilder =
+                new NotificationCompat.Builder(this)
+                        .setContentTitle("Liquid Logger")
+                        .setContentText(message)
+                        .setSmallIcon(R.drawable.coffee);
+
+        // Sets an ID for the notification
+        int mNotificationId = 001;
+        // Gets an instance of the NotificationManager service
+        NotificationManager mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        // Builds the notification and issues it.
+        mNotifyMgr.notify(mNotificationId, mBuilder.build());
+    }
+
     @Override
-    public void onLiquidLogApiError() {
-        Log.d("MainActivity", "API Error");
+    public void onLiquidLogApiError(String error) {
+        Log.d("MainActivity", "API Error: " + error);
     }
 
     @Override
     public void onLiquidLogApiStatusResponse(LiquidLogAPI.CoffeeStatus coffeeStatus) {
         displayCoffeeStatus(coffeeStatus);
+
+        if (coffeeStatus.getpH() >= 4.8 && coffeeStatus.getpH() <= 5.2 && !notified) {
+            displayNotification("Your coffee is ready!");
+            notified = true;
+        }
+        else if (coffeeStatus.getpH() < 4.5) {
+            Log.d("MainActivity", "Notify");
+            displayNotification("Sorry, your coffee is ruined");
+        }
     }
 }
