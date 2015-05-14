@@ -75,30 +75,39 @@ public class LiquidLogAPI {
 
     }
 
-    private class APILoader extends AsyncTask<String, Void, CoffeeStatus> {
+    private class APILoader extends AsyncTask<String, Void, JSONObject> {
 
         @Override
-        protected CoffeeStatus doInBackground(String... params) {
+        protected JSONObject doInBackground(String... params) {
             try {
                 //http://23.253.213.123:1880/status
                 String url = params[0];
                 String response = GET(url);
                 JSONObject statusObject = new JSONObject(response);
 
-                CoffeeStatus status = new CoffeeStatus(statusObject.getString("temp"), statusObject.getString("pH"));
-                return status;
+                return statusObject;
             }
-            catch (JSONException e) {
+            catch (Exception e) {
                 return null;
             }
         }
 
-        protected void onPostExecute(CoffeeStatus result) {
+        protected void onPostExecute(JSONObject result) {
             if (result != null) {
-                callback.onLiquidLogApiStatusResponse(result);
+                try {
+                    if (result.getString("temp").equals("") || result.getString("pH").equals("")) {
+                        callback.onLiquidLogApiError("Invalid values from node-red.  mbed device possibly not running.");
+                    }
+
+                    CoffeeStatus status = new CoffeeStatus(result.getString("temp"), result.getString("pH"));
+                    callback.onLiquidLogApiStatusResponse(status);
+                }
+                catch (JSONException e){
+                    callback.onLiquidLogApiError("Invalid values from node-red.  Unexpected JSON response format.");
+                }
             }
             else {
-                callback.onLiquidLogApiError();
+                callback.onLiquidLogApiError("Unable to access node-red. Is the server running? (better go catch it)");
             }
         }
     }
@@ -127,7 +136,7 @@ public class LiquidLogAPI {
     }
 
     public interface LiquidLogApiCallback {
-        public void onLiquidLogApiError();
+        public void onLiquidLogApiError(String error);
         public void onLiquidLogApiStatusResponse(CoffeeStatus status);
     }
 }
