@@ -6,12 +6,17 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.parse.Parse;
+
 public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // Get the view from activity_main.xml
         setContentView(R.layout.activity_main);
+
+        Parse.enableLocalDatastore(this);
+        Parse.initialize(this, "H4kwvMBZVHWXIzmfvHVqaEtLTXPQR8B495PqJkRt", "btY3RPW977jhi5yUyqbXPflEMzFlOFxPz0vDBjsL");
 
         // Locate the viewpager in activity_main.xml
         ViewPager viewPager = (ViewPager) findViewById(R.id.pager);

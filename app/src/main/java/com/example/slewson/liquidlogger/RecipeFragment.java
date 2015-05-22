@@ -1,30 +1,37 @@
 package com.example.slewson.liquidlogger;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
+import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import com.parse.FindCallback;
+import com.parse.ParseException;
 import com.parse.ParseObject;
+import com.parse.ParseQuery;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Marie on 5/21/2015.
  */
 public class RecipeFragment extends ListFragment {
-    private ArrayList mValues;
+    private ArrayList<ParseObject> mValues;
+    private RecipeAdapter adapter;
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-
+        mValues = new ArrayList<>();
         initValues();
-        String[] values = (String[]) mValues.toArray(new String[mValues.size()]);
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(getActivity(),
-                android.R.layout.simple_list_item_1, values);
-        setListAdapter(adapter);
     }
 
     @Override
@@ -35,11 +42,56 @@ public class RecipeFragment extends ListFragment {
     }
 
     private void initValues() {
-        mValues = new ArrayList();
-        mValues.add("Add Recipe");
+        mValues = new ArrayList<>();
 
-        ParseObject po = null;
+//        ParseObject recipe = new ParseObject("Recipe");
+//        recipe.put("name", "Default");
+//        recipe.put("pH", 4.5);
+//        recipe.put("temp", 44);
+//        recipe.saveInBackground();
 
-        mValues.add("Recipe 1");
+        ParseQuery<ParseObject> query = new ParseQuery<>("Recipe");
+
+        query.findInBackground(new FindCallback<ParseObject>() {
+            @Override
+            public void done(List<ParseObject> objects,
+                             ParseException e) {
+                if (e == null) {
+                    String myObject = objects.toString();
+
+                    for (ParseObject object : objects) {
+                        mValues.add(object);
+                        Log.e("Recipe", object.getString("name"));
+                    }
+                    adapter = new RecipeAdapter(getActivity(), mValues);
+                    setListAdapter(adapter);
+                    adapter.notifyDataSetChanged();
+                } else {
+                    Log.e("Recipe", "Error: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    public class RecipeAdapter extends ArrayAdapter<ParseObject> {
+        public RecipeAdapter(Context context, ArrayList<ParseObject> recipes) {
+            super(context, R.layout.item_recipe, recipes);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            // Get the data item for this position
+            ParseObject recipe = getItem(position);
+            // Check if an existing view is being reused, otherwise inflate the view
+            if (convertView == null) {
+                convertView = LayoutInflater.from(getContext()).inflate(R.layout.item_recipe, parent, false);
+            }
+            // Lookup view for data population
+            TextView name = (TextView) convertView.findViewById(R.id.recipeName);
+            // Populate the data into the template view using the data object
+            name.setText(recipe.getString("name"));
+            // Return the completed view to render on screen
+            return convertView;
+        }
     }
 }
