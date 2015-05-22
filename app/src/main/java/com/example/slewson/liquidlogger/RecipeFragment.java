@@ -1,17 +1,21 @@
 package com.example.slewson.liquidlogger;
 
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import com.example.slewson.liquidlogger.model.RecipeObject;
 import com.parse.FindCallback;
 import com.parse.ParseException;
 import com.parse.ParseObject;
@@ -32,23 +36,32 @@ public class RecipeFragment extends ListFragment {
         super.onActivityCreated(savedInstanceState);
         mValues = new ArrayList<>();
         initValues();
+
+        getListView().setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+
+            @Override
+            public boolean onItemLongClick(AdapterView<?> arg0, View view,
+                                           int pos, long id) {
+                ParseObject po = (ParseObject) getListView().getItemAtPosition(pos);
+                deleteRecipe(po, pos);
+                return true;
+            }
+        });
     }
 
     @Override
     public void onListItemClick(ListView l, View v, int position, long id) {
-        Toast.makeText(getActivity(),
-                String.valueOf(l.getItemAtPosition(position)),
-                Toast.LENGTH_LONG).show();
+        ParseObject po = (ParseObject) l.getItemAtPosition(position);
+        RecipeObject selectedRecipe = new RecipeObject(po.getString("name"), po.getDouble("pH"),
+                po.getDouble("temp"), po.getString("notes"), po.getObjectId());
+
+        Intent i = new Intent(getActivity(), RecipeActivity.class);
+        i.putExtra("recipe", selectedRecipe);
+        startActivity(i);
     }
 
     private void initValues() {
         mValues = new ArrayList<>();
-
-//        ParseObject recipe = new ParseObject("Recipe");
-//        recipe.put("name", "Default");
-//        recipe.put("pH", 4.5);
-//        recipe.put("temp", 44);
-//        recipe.saveInBackground();
 
         ParseQuery<ParseObject> query = new ParseQuery<>("Recipe");
 
@@ -71,6 +84,36 @@ public class RecipeFragment extends ListFragment {
                 }
             }
         });
+    }
+
+    public void deleteRecipe(final ParseObject po, int position) {
+        final int deletePosition = position;
+
+        AlertDialog.Builder alert = new AlertDialog.Builder(
+                getActivity());
+
+        alert.setTitle("Delete");
+        alert.setMessage("Do you want delete this item?");
+        alert.setPositiveButton("YES", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                // TOD O Auto-generated method stub
+
+                // main code on after clicking yes
+                mValues.remove(deletePosition);
+                po.deleteInBackground();
+                adapter.notifyDataSetChanged();
+                adapter.notifyDataSetInvalidated();
+            }
+        });
+        alert.setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+
+        alert.show();
     }
 
     public class RecipeAdapter extends ArrayAdapter<ParseObject> {

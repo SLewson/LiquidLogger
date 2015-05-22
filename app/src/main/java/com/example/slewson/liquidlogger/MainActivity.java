@@ -1,12 +1,16 @@
 package com.example.slewson.liquidlogger;
 
+import android.content.Intent;
+import android.os.Parcelable;
 import android.support.v4.view.ViewPager;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.example.slewson.liquidlogger.model.RecipeObject;
 import com.parse.Parse;
+import com.parse.ParseObject;
 
 public class MainActivity extends AppCompatActivity {
     @Override
@@ -14,9 +18,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         // Get the view from activity_main.xml
         setContentView(R.layout.activity_main);
-
-        Parse.enableLocalDatastore(this);
-        Parse.initialize(this, "H4kwvMBZVHWXIzmfvHVqaEtLTXPQR8B495PqJkRt", "btY3RPW977jhi5yUyqbXPflEMzFlOFxPz0vDBjsL");
 
         // Locate the viewpager in activity_main.xml
         ViewPager viewPager = (ViewPager) findViewById(R.id.pager);
@@ -39,6 +40,12 @@ public class MainActivity extends AppCompatActivity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         //noinspection SimplifiableIfStatement
+        if (id == R.id.action_recipe) {
+            Intent i = new Intent(this, RecipeActivity.class);
+            i.putExtra("recipe", new RecipeObject());
+            startActivity(i);
+        }
+
         if (id == R.id.action_settings) {
             return true;
         }
