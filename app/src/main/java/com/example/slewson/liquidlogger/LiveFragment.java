@@ -2,6 +2,7 @@ package com.example.slewson.liquidlogger;
 
 import android.app.NotificationManager;
 import android.graphics.Color;
+import android.graphics.PathEffect;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.NotificationCompat;
@@ -17,9 +18,11 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import lecho.lib.hellocharts.formatter.AxisValueFormatter;
+import lecho.lib.hellocharts.formatter.SimpleAxisValueFormatter;
+import lecho.lib.hellocharts.gesture.ContainerScrollType;
 import lecho.lib.hellocharts.model.Axis;
-import lecho.lib.hellocharts.model.ChartData;
-import lecho.lib.hellocharts.model.ColumnChartData;
+import lecho.lib.hellocharts.model.AxisValue;
 import lecho.lib.hellocharts.model.Line;
 import lecho.lib.hellocharts.model.LineChartData;
 import lecho.lib.hellocharts.model.PointValue;
@@ -35,6 +38,7 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
     private TextView temp_textview = null;
 
     private LineChartView lineChartView = null;
+    private Line pHLine = null;
 
     private Timer timer = null;
     private boolean notified = false;
@@ -52,31 +56,42 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         temp_textview = (TextView) view.findViewById(R.id.temp_value);
 
         lineChartView = (LineChartView) view.findViewById(R.id.line_chart);
+        pHLine = new Line(new ArrayList<PointValue>()).setColor(Color.BLUE).setCubic(true);
 
         initChart();
         return view;
     }
 
     private void initChart() {
+//        lineChartView.setContainerScrollEnabled(true, ContainerScrollType.HORIZONTAL);
+        lineChartView.setContainerScrollEnabled(true, ContainerScrollType.VERTICAL);
         List<PointValue> values = new ArrayList<>();
         values.add(new PointValue(0.0f, 2.0f));
         values.add(new PointValue(1.5f, 1.5f));
         values.add(new PointValue(2.7f, 3.7f));
         values.add(new PointValue(3.2f, 4.2f));
+        pHLine.setValues(values);
 
         //In most cased you can call data model methods in builder-pattern-like manner.
-        Line line = new Line(values).setColor(Color.BLUE).setCubic(true);
-        line.setStrokeWidth(3);
+//        Line line = new Line(values).setColor(Color.BLUE).setCubic(true);
+        pHLine.setStrokeWidth(3);
+
         List<Line> lines = new ArrayList<>();
-        lines.add(line);
+        lines.add(pHLine);
 
         LineChartData data = new LineChartData();
         data.setLines(lines);
 
-        Axis x = Axis.generateAxisFromRange(-4f, 4f, 0.25f);
+
+        Axis x = new Axis();
+        AxisValueFormatter axisFormatter = new SimpleAxisValueFormatter();
         x.setName("Time");
 
-        Axis y = new Axis();
+        List<AxisValue> yAxisValues = new ArrayList<>();
+        for (float i = 0; i < 14.0; i += 0.5f) {
+            yAxisValues.add(new AxisValue(i));
+        }
+        Axis y = new Axis(yAxisValues);
         y.setName("pH");
         y.setHasSeparationLine(true);
         y.setHasLines(true);
@@ -87,6 +102,14 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         lineChartView.setLineChartData(data);
     }
 
+    public void addPhPoint(PointValue pv) {
+        List<PointValue> values = pHLine.getValues();
+        values.add(pv);
+
+        pHLine.setValues(values);
+        lineChartView.refreshDrawableState();
+    }
+
     private void startCoffeeRefreshTimer() {
         timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
@@ -94,6 +117,7 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
             public void run() {
                 Log.d("MainActivity", "Getting coffee status");
                 liquidLogAPI.getCoffeeStatus();
+                addPhPoint(new PointValue(valuething++, 2.0f));
             }
         }, 0, 1500);
     }
@@ -121,15 +145,18 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         mNotifyMgr.notify(mNotificationId, mBuilder.build());
     }
 
+    private float valuething = 0;
+
     @Override
     public void onLiquidLogApiError(String error) {
         Log.d("MainActivity", "API Error: " + error);
+
     }
 
     @Override
     public void onLiquidLogApiStatusResponse(LiquidLogAPI.CoffeeStatus coffeeStatus) {
         displayCoffeeStatus(coffeeStatus);
-
+        Log.d("MainActivity", "success for some reason");
         if (coffeeStatus.getpH() >= 4.8 && coffeeStatus.getpH() <= 5.2 && !notified) {
             displayNotification("Your coffee is ready!");
             notified = true;
