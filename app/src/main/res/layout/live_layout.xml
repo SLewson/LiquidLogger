@@ -6,8 +6,92 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_centerInParent="true">
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_marginTop="5dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="3">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:layout_weight="1">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:textStyle="bold"
+                    android:text="Recipe"/>
+
+                <TextView
+                    android:id="@+id/current_recipe_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:text="recipeName"/>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:layout_weight="1">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:textStyle="bold"
+                    android:text="Goal pH"/>
+
+                <TextView
+                    android:id="@+id/goal_ph_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:text="goalpH"/>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:textStyle="bold"
+                    android:text="Goal Temperature"/>
+
+                <TextView
+                    android:id="@+id/goal_temp_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:text="goalTemp"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/start_button"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginRight="15dp"
+            android:layout_marginLeft="15dp"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"
+            android:text="Start/Stop"/>
 
         <lecho.lib.hellocharts.view.LineChartView
             android:id="@+id/line_chart"
@@ -17,6 +101,7 @@
             android:layout_height="300dp"/>
 
         <ProgressBar
+            android:id="@+id/progress_bar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
@@ -28,43 +113,6 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:text="Brewing..." />
-
-
-        <TextView
-            android:id="@+id/ph_value"
-            android:text="pH"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="60sp"
-            android:layout_centerHorizontal="true"
-            />
-
-        <TextView
-            android:id="@+id/ph_label"
-            android:text="pH Level"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="40sp"
-            android:layout_centerHorizontal="true"
-            />
-
-        <TextView
-            android:id="@+id/temp_value"
-            android:text="Temp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="60sp"
-            android:layout_centerHorizontal="true"
-            />
-
-        <TextView
-            android:id="@+id/temp_label"
-            android:text="Temp Level"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="40sp"
-            android:layout_centerHorizontal="true"
-            />
     </LinearLayout>
 
     <LinearLayout
@@ -79,56 +127,67 @@
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:layout_weight="1"
+            android:background="#0000FF">
+
+            <TextView
+                android:id="@+id/pH_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:textStyle="bold"
+                android:text="Current pH"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:text="pH Value"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:layout_weight="1"
             android:background="#FF0000">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:text="stuff"/>
+                android:textStyle="bold"
+                android:text="Current Temperature"/>
 
             <TextView
+                android:id="@+id/temp_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="stuff"/>
+                android:layout_gravity="center_horizontal"
+                android:text="Temp Value"/>
 
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:orientation="vertical"
             android:layout_weight="1"
+            android:orientation="vertical"
             android:background="#00FF00">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="stuff"/>
+                android:layout_gravity="center_horizontal"
+                android:textStyle="bold"
+                android:text="Duration"/>
 
             <TextView
+                android:id="@+id/time_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="stuff"/>
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:background="#0000FF">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="stuff"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="stuff"/>
+                android:layout_gravity="center_horizontal"
+                android:text="Time"/>
 
         </LinearLayout>
 

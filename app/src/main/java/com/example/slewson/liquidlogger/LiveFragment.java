@@ -10,22 +10,25 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.example.slewson.liquidlogger.model.RecipeObject;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import lecho.lib.hellocharts.formatter.AxisValueFormatter;
 import lecho.lib.hellocharts.formatter.SimpleAxisValueFormatter;
-import lecho.lib.hellocharts.gesture.ContainerScrollType;
 import lecho.lib.hellocharts.model.Axis;
-import lecho.lib.hellocharts.model.AxisValue;
 import lecho.lib.hellocharts.model.Line;
 import lecho.lib.hellocharts.model.LineChartData;
 import lecho.lib.hellocharts.model.PointValue;
+import lecho.lib.hellocharts.model.Viewport;
+import lecho.lib.hellocharts.util.ChartUtils;
 import lecho.lib.hellocharts.view.LineChartView;
 
 /**
@@ -33,15 +36,33 @@ import lecho.lib.hellocharts.view.LineChartView;
  */
 public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiCallback{
     private LiquidLogAPI liquidLogAPI;
+    private RecipeObject recipe = null;
 
+    private TextView recipeName_textview = null;
+    private TextView goalpH_textview = null;
+    private TextView goalTemp_textview = null;
     private TextView pH_textview = null;
     private TextView temp_textview = null;
+    private TextView time_textview = null;
+    private Button start_button = null;
+    private ProgressBar progress_bar_view = null;
 
     private LineChartView lineChartView = null;
-    private Line pHLine = null;
+    private List<PointValue> pHvalues = null;
+    private List<PointValue> tempValues = null;
+    private float scale = 14.0f / 220.0f;
+    private float offset = (0.0f * scale) / 2;
 
     private Timer timer = null;
     private boolean notified = false;
+
+    private boolean inProgress = false;
+    private boolean phComplete = false;
+    private boolean tempComplete = false;
+
+    private float fakeTimer = 0;
+    private double fakepH = 3.0;
+    private double fakeTemp = 32.0;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -49,65 +70,157 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         // Get the view from live_layout.xml
         View view = inflater.inflate(R.layout.live_layout, container, false);
         liquidLogAPI = new LiquidLogAPI(this);
-        startCoffeeRefreshTimer();
-        //liquidLogAPI.getCoffeeStatus();
+        // TODO: Use real recipes
+        recipe = new RecipeObject("DEFAULT", 7.0, 50.0, "", "");
 
-        pH_textview = (TextView) view.findViewById(R.id.ph_value);
-        temp_textview = (TextView) view.findViewById(R.id.temp_value);
+        startCoffeeRefreshTimer();
+
+        recipeName_textview = (TextView) view.findViewById(R.id.current_recipe_text);
+        goalpH_textview = (TextView) view.findViewById(R.id.goal_ph_text);
+        goalTemp_textview = (TextView) view.findViewById(R.id.goal_temp_text);
+        pH_textview = (TextView) view.findViewById(R.id.pH_text);
+        temp_textview = (TextView) view.findViewById(R.id.temp_text);
+        time_textview = (TextView) view.findViewById(R.id.time_text);
+        start_button = (Button) view.findViewById(R.id.start_button);
+        progress_bar_view = (ProgressBar) view.findViewById(R.id.progress_bar);
+        initViews();
 
         lineChartView = (LineChartView) view.findViewById(R.id.line_chart);
-        pHLine = new Line(new ArrayList<PointValue>()).setColor(Color.BLUE).setCubic(true);
+        pHvalues = new ArrayList<>();
+        tempValues = new ArrayList<>();
 
-        initChart();
+        generateData();
         return view;
     }
 
-    private void initChart() {
-//        lineChartView.setContainerScrollEnabled(true, ContainerScrollType.HORIZONTAL);
-        lineChartView.setContainerScrollEnabled(true, ContainerScrollType.VERTICAL);
-        List<PointValue> values = new ArrayList<>();
-        values.add(new PointValue(0.0f, 2.0f));
-        values.add(new PointValue(1.5f, 1.5f));
-        values.add(new PointValue(2.7f, 3.7f));
-        values.add(new PointValue(3.2f, 4.2f));
-        pHLine.setValues(values);
+    private void initViews() {
+        recipeName_textview.setText(recipe.getName());
+        goalpH_textview.setText(recipe.getpH().toString());
+        goalTemp_textview.setText(recipe.getTemp().toString());
 
-        //In most cased you can call data model methods in builder-pattern-like manner.
-//        Line line = new Line(values).setColor(Color.BLUE).setCubic(true);
-        pHLine.setStrokeWidth(3);
-
-        List<Line> lines = new ArrayList<>();
-        lines.add(pHLine);
-
-        LineChartData data = new LineChartData();
-        data.setLines(lines);
-
-
-        Axis x = new Axis();
-        AxisValueFormatter axisFormatter = new SimpleAxisValueFormatter();
-        x.setName("Time");
-
-        List<AxisValue> yAxisValues = new ArrayList<>();
-        for (float i = 0; i < 14.0; i += 0.5f) {
-            yAxisValues.add(new AxisValue(i));
-        }
-        Axis y = new Axis(yAxisValues);
-        y.setName("pH");
-        y.setHasSeparationLine(true);
-        y.setHasLines(true);
-
-        data.setAxisXBottom(x);
-        data.setAxisYLeft(y);
-
-        lineChartView.setLineChartData(data);
+        start_button.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (inProgress) {
+                    stopLogger();
+                } else {
+                    startLogger();
+                }
+            }
+        });
     }
 
-    public void addPhPoint(PointValue pv) {
-        List<PointValue> values = pHLine.getValues();
-        values.add(pv);
+    private void stopLogger() {
+        inProgress = false;
+    }
 
-        pHLine.setValues(values);
-        lineChartView.refreshDrawableState();
+    private void startLogger() {
+        reset();
+        inProgress = true;
+    }
+
+    private void updateProgress() {
+        // TODO: adjust jenk calculations
+        if (Math.abs(fakepH - recipe.getpH()) <= 0.5 && !phComplete) {
+            displayNotification("Goal pH reached!");
+            phComplete = true;
+        }
+        if (Math.abs(fakeTemp - recipe.getTemp()) <= 1.0 && !tempComplete) {
+            displayNotification("Goal temperature reached!");
+            tempComplete = true;
+        }
+
+        if (phComplete && tempComplete) {
+            stopLogger();
+            displayNotification("Coffee Complete!");
+        }
+    }
+
+    private void generateData() {
+        List<Line> lines = new ArrayList<>();
+        Line pHLine = new Line(pHvalues)
+                .setColor(Color.BLUE)
+                .setCubic(false)
+                .setStrokeWidth(3);
+        lines.add(pHLine);
+
+//        ArrayList<PointValue> goalpHValues = new ArrayList<>();
+//        for (PointValue pv : pHvalues) {
+//            goalpHValues.add(new PointValue(pv.getX(), recipe.getpH().floatValue()));
+//        }
+//        Line goalpHLine = new Line(goalpHValues)
+//                .setColor(Color.BLUE)
+//                .setStrokeWidth(1)
+//                .setHasPoints(false);
+//        lines.add(goalpHLine);
+
+        Line tempLine = new Line(tempValues)
+                .setColor(Color.RED)
+                .setCubic(false)
+                .setStrokeWidth(3);
+        lines.add(tempLine);
+
+//        ArrayList<PointValue> goalTempValues = new ArrayList<>();
+//        for (PointValue pv : tempValues) {
+//            goalTempValues.add(new PointValue(pv.getX(), recipe.getTemp().floatValue() * scale - offset));
+//        }
+//        Line goalTempLine = new Line(goalTempValues)
+//                .setColor(Color.RED)
+//                .setStrokeWidth(1)
+//                .setHasPoints(false);
+//        lines.add(goalTempLine);
+
+        LineChartData data = new LineChartData(lines);
+
+        Axis axisX = new Axis().setName("Time");
+        Axis axisY = new Axis().setName("pH")
+                .setTextColor(ChartUtils.COLOR_BLUE)
+                .setHasLines(true);
+        Axis axisZ = new Axis().setName("Temperature")
+                .setTextColor(ChartUtils.COLOR_RED)
+                .setFormatter(new TemperatureValueFormatter(scale, offset, 0));
+
+        data.setAxisXBottom(axisX);
+        data.setAxisYLeft(axisY);
+        data.setAxisYRight(axisZ);
+
+        lineChartView.setLineChartData(data);
+        resetViewport();
+    }
+
+    private void reset() {
+        fakeTimer = 0f;
+        fakepH = 3.0f;
+        fakeTemp = 32.0f;
+
+        phComplete = false;
+        tempComplete = false;
+        progress_bar_view.setProgress(0);
+
+        pHvalues.clear();
+        tempValues.clear();
+        generateData();
+    }
+
+    private void resetViewport() {
+        // Reset viewport height range to (0,100)
+        final Viewport v = new Viewport(lineChartView.getMaximumViewport());
+        v.bottom = 0;
+        v.top = 14.0f;
+        v.left = 0;
+        v.right = pHvalues.size();
+        lineChartView.setMaximumViewport(v);
+        lineChartView.setCurrentViewport(v);
+    }
+
+    public void addPhValue(PointValue pv) {
+        pHvalues.add(pv);
+        generateData();
+    }
+
+    public void addTempValue(PointValue pv) {
+        pv.set(pv.getX(), pv.getY() * scale - offset);
+        tempValues.add(pv);
+        generateData();
     }
 
     private void startCoffeeRefreshTimer() {
@@ -117,7 +230,14 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
             public void run() {
                 Log.d("MainActivity", "Getting coffee status");
                 liquidLogAPI.getCoffeeStatus();
-                addPhPoint(new PointValue(valuething++, 2.0f));
+                if (inProgress) {
+                    fakepH += 0.5;
+                    fakeTemp += 2.0;
+                    addPhValue(new PointValue(fakeTimer, (float) fakepH));
+                    addTempValue(new PointValue(fakeTimer, (float) fakeTemp));
+                    updateProgress();
+                    fakeTimer += 1f;
+                }
             }
         }, 0, 1500);
     }
@@ -145,8 +265,6 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         mNotifyMgr.notify(mNotificationId, mBuilder.build());
     }
 
-    private float valuething = 0;
-
     @Override
     public void onLiquidLogApiError(String error) {
         Log.d("MainActivity", "API Error: " + error);
@@ -164,6 +282,25 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         else if (coffeeStatus.getpH() < 4.5) {
             Log.d("MainActivity", "Notify");
             displayNotification("Sorry, your coffee is ruined");
+        }
+    }
+
+    private static class TemperatureValueFormatter extends SimpleAxisValueFormatter {
+
+        private float scale;
+        private float sub;
+        private int decimalDigits;
+
+        public TemperatureValueFormatter(float scale, float sub, int decimalDigits) {
+            this.scale = scale;
+            this.sub = sub;
+            this.decimalDigits = decimalDigits;
+        }
+
+        @Override
+        public int formatValueForAutoGeneratedAxis(char[] formattedValue, float value, int autoDecimalDigits) {
+            float scaledValue = (value + sub) / scale;
+            return super.formatValueForAutoGeneratedAxis(formattedValue, scaledValue, this.decimalDigits);
         }
     }
 }
