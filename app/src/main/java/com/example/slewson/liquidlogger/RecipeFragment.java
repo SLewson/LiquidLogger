@@ -15,6 +15,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.example.slewson.liquidlogger.model.ParseManager;
 import com.example.slewson.liquidlogger.model.RecipeObject;
 import com.parse.FindCallback;
 import com.parse.ParseException;
@@ -28,7 +29,7 @@ import java.util.List;
  * Created by Marie on 5/21/2015.
  */
 public class RecipeFragment extends ListFragment {
-    private ArrayList<ParseObject> mValues;
+    private List<ParseObject> mValues;
     private RecipeAdapter adapter;
 
     @Override
@@ -61,29 +62,10 @@ public class RecipeFragment extends ListFragment {
     }
 
     private void initValues() {
-        mValues = new ArrayList<>();
-
-        ParseQuery<ParseObject> query = new ParseQuery<>("Recipe");
-
-        query.findInBackground(new FindCallback<ParseObject>() {
-            @Override
-            public void done(List<ParseObject> objects,
-                             ParseException e) {
-                if (e == null) {
-                    String myObject = objects.toString();
-
-                    for (ParseObject object : objects) {
-                        mValues.add(object);
-                        Log.e("Recipe", object.getString("name"));
-                    }
-                    adapter = new RecipeAdapter(getActivity(), mValues);
-                    setListAdapter(adapter);
-                    adapter.notifyDataSetChanged();
-                } else {
-                    Log.e("Recipe", "Error: " + e.getMessage());
-                }
-            }
-        });
+        mValues = ParseManager.getAllRecipes();
+        adapter = new RecipeAdapter(getActivity(), mValues);
+        setListAdapter(adapter);
+        adapter.notifyDataSetChanged();
     }
 
     public void deleteRecipe(final ParseObject po, int position) {
@@ -97,11 +79,8 @@ public class RecipeFragment extends ListFragment {
         alert.setPositiveButton("YES", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                // TOD O Auto-generated method stub
-
-                // main code on after clicking yes
                 mValues.remove(deletePosition);
-                po.deleteInBackground();
+                ParseManager.deleteRecipe(po);
                 adapter.notifyDataSetChanged();
                 adapter.notifyDataSetInvalidated();
             }
@@ -117,7 +96,7 @@ public class RecipeFragment extends ListFragment {
     }
 
     public class RecipeAdapter extends ArrayAdapter<ParseObject> {
-        public RecipeAdapter(Context context, ArrayList<ParseObject> recipes) {
+        public RecipeAdapter(Context context, List<ParseObject> recipes) {
             super(context, R.layout.item_recipe, recipes);
         }
 

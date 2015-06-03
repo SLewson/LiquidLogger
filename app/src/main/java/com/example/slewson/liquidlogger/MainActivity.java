@@ -1,16 +1,26 @@
 package com.example.slewson.liquidlogger;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Parcelable;
+import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ArrayAdapter;
 
+import com.example.slewson.liquidlogger.model.ParseManager;
 import com.example.slewson.liquidlogger.model.RecipeObject;
 import com.parse.Parse;
 import com.parse.ParseObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -22,9 +32,10 @@ public class MainActivity extends AppCompatActivity {
 
         // Locate the viewpager in activity_main.xml
         ViewPager viewPager = (ViewPager) findViewById(R.id.pager);
+        ViewPagerAdapter viewPagerAdapter = new ViewPagerAdapter(getSupportFragmentManager());
 
         // Set the ViewPagerAdapter into ViewPager
-        viewPager.setAdapter(new ViewPagerAdapter(getSupportFragmentManager()));
+        viewPager.setAdapter(viewPagerAdapter);
     }
 
     @Override
@@ -40,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
+
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_recipe) {
             Intent i = new Intent(this, RecipeActivity.class);

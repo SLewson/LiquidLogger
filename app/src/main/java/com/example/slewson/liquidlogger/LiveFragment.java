@@ -1,21 +1,26 @@
 package com.example.slewson.liquidlogger;
 
+import android.app.AlertDialog;
 import android.app.NotificationManager;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Color;
-import android.graphics.PathEffect;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import com.example.slewson.liquidlogger.model.ParseManager;
 import com.example.slewson.liquidlogger.model.RecipeObject;
+import com.parse.ParseObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +50,7 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
     private TextView temp_textview = null;
     private TextView time_textview = null;
     private Button start_button = null;
+    private Button current_button = null;
     private ProgressBar progress_bar_view = null;
 
     private LineChartView lineChartView = null;
@@ -61,7 +67,7 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
     private boolean tempComplete = false;
 
     private float fakeTimer = 0;
-    private double fakepH = 3.0;
+    private double fakepH = 7.0;
     private double fakeTemp = 32.0;
 
     @Override
@@ -71,7 +77,7 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         View view = inflater.inflate(R.layout.live_layout, container, false);
         liquidLogAPI = new LiquidLogAPI(this);
         // TODO: Use real recipes
-        recipe = new RecipeObject("DEFAULT", 7.0, 50.0, "", "");
+        recipe = new RecipeObject("DEFAULT", 3.0, 50.0, "", "");
 
         startCoffeeRefreshTimer();
 
@@ -82,6 +88,7 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         temp_textview = (TextView) view.findViewById(R.id.temp_text);
         time_textview = (TextView) view.findViewById(R.id.time_text);
         start_button = (Button) view.findViewById(R.id.start_button);
+        current_button = (Button) view.findViewById(R.id.current_button);
         progress_bar_view = (ProgressBar) view.findViewById(R.id.progress_bar);
         initViews();
 
@@ -107,6 +114,12 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
                 }
             }
         });
+
+        current_button.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                selectCurrentRecipe();
+            }
+        });
     }
 
     private void stopLogger() {
@@ -119,17 +132,20 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
     }
 
     private void updateProgress() {
+        progress_bar_view.setProgress((int) (((7.0 - fakepH) / (7.0 - recipe.getpH())) * 100.0));
+
         // TODO: adjust jenk calculations
         if (Math.abs(fakepH - recipe.getpH()) <= 0.5 && !phComplete) {
             displayNotification("Goal pH reached!");
             phComplete = true;
+            progress_bar_view.setProgress(100);
         }
-        if (Math.abs(fakeTemp - recipe.getTemp()) <= 1.0 && !tempComplete) {
-            displayNotification("Goal temperature reached!");
-            tempComplete = true;
-        }
+//        if (Math.abs(fakeTemp - recipe.getTemp()) <= 1.0 && !tempComplete) {
+//            displayNotification("Goal temperature reached!");
+//            tempComplete = true;
+//        }
 
-        if (phComplete && tempComplete) {
+        if (phComplete) {
             stopLogger();
             displayNotification("Coffee Complete!");
         }
@@ -189,7 +205,7 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
 
     private void reset() {
         fakeTimer = 0f;
-        fakepH = 3.0f;
+        fakepH = 7.0f;
         fakeTemp = 32.0f;
 
         phComplete = false;
@@ -202,7 +218,6 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
     }
 
     private void resetViewport() {
-        // Reset viewport height range to (0,100)
         final Viewport v = new Viewport(lineChartView.getMaximumViewport());
         v.bottom = 0;
         v.top = 14.0f;
@@ -231,7 +246,7 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
                 Log.d("MainActivity", "Getting coffee status");
                 liquidLogAPI.getCoffeeStatus();
                 if (inProgress) {
-                    fakepH += 0.5;
+                    fakepH -= 0.5;
                     fakeTemp += 2.0;
                     addPhValue(new PointValue(fakeTimer, (float) fakepH));
                     addTempValue(new PointValue(fakeTimer, (float) fakeTemp));
@@ -283,6 +298,39 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
             Log.d("MainActivity", "Notify");
             displayNotification("Sorry, your coffee is ruined");
         }
+    }
+
+    public void selectCurrentRecipe() {
+        final List<ParseObject> recipes = ParseManager.getAllRecipes();
+        final ArrayList<String> items = new ArrayList<>();
+        for (ParseObject po : recipes) {
+            items.add(po.getString("name"));
+        }
+
+        AlertDialog.Builder adb = new AlertDialog.Builder(getActivity());
+        adb.setSingleChoiceItems(items.toArray(new String[items.size()]), 0, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface d, int n) {
+                ParseObject selectedRecipe = recipes.get(n);
+                setCurrentRecipe(new RecipeObject(selectedRecipe.getString("name"),
+                        selectedRecipe.getDouble("pH"),
+                        selectedRecipe.getDouble("temp"),
+                        selectedRecipe.getString("notes"),
+                        selectedRecipe.getObjectId()));
+                d.dismiss();
+            }
+        });
+        adb.setNegativeButton("Cancel", null);
+        adb.setTitle("Select a Recipe");
+        adb.show();
+    }
+
+    public void setCurrentRecipe(RecipeObject selected) {
+        recipe = selected;
+        recipeName_textview.setText(recipe.getName());
+        goalpH_textview.setText(recipe.getpH().toString());
+        goalTemp_textview.setText(recipe.getTemp().toString());
+        reset();
     }
 
     private static class TemperatureValueFormatter extends SimpleAxisValueFormatter {
