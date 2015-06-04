@@ -23,6 +23,7 @@ import com.example.slewson.liquidlogger.model.RecipeObject;
 import com.parse.ParseObject;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -48,7 +49,6 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
     private TextView goalTemp_textview = null;
     private TextView pH_textview = null;
     private TextView temp_textview = null;
-    private TextView time_textview = null;
     private Button start_button = null;
     private Button current_button = null;
     private ProgressBar progress_bar_view = null;
@@ -64,7 +64,6 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
 
     private boolean inProgress = false;
     private boolean phComplete = false;
-    private boolean tempComplete = false;
 
     private float fakeTimer = 0;
     private double fakepH = 7.0;
@@ -77,7 +76,7 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         View view = inflater.inflate(R.layout.live_layout, container, false);
         liquidLogAPI = new LiquidLogAPI(this);
         // TODO: Use real recipes
-        recipe = new RecipeObject("DEFAULT", 3.0, 50.0, "", "");
+        recipe = new RecipeObject("DEFAULT", 5.1, 50.0, "", "");
 
         startCoffeeRefreshTimer();
 
@@ -86,7 +85,6 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         goalTemp_textview = (TextView) view.findViewById(R.id.goal_temp_text);
         pH_textview = (TextView) view.findViewById(R.id.pH_text);
         temp_textview = (TextView) view.findViewById(R.id.temp_text);
-        time_textview = (TextView) view.findViewById(R.id.time_text);
         start_button = (Button) view.findViewById(R.id.start_button);
         current_button = (Button) view.findViewById(R.id.current_button);
         progress_bar_view = (ProgressBar) view.findViewById(R.id.progress_bar);
@@ -104,6 +102,9 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         recipeName_textview.setText(recipe.getName());
         goalpH_textview.setText(recipe.getpH().toString());
         goalTemp_textview.setText(recipe.getTemp().toString());
+
+        pH_textview.setText("" + fakepH);
+        temp_textview.setText("" + fakeTemp);
 
         start_button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -132,6 +133,14 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
     }
 
     private void updateProgress() {
+        this.getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                pH_textview.setText("" + fakepH);
+                temp_textview.setText("" + fakeTemp);
+            }
+        });
+
         progress_bar_view.setProgress((int) (((7.0 - fakepH) / (7.0 - recipe.getpH())) * 100.0));
 
         // TODO: adjust jenk calculations
@@ -140,10 +149,6 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
             phComplete = true;
             progress_bar_view.setProgress(100);
         }
-//        if (Math.abs(fakeTemp - recipe.getTemp()) <= 1.0 && !tempComplete) {
-//            displayNotification("Goal temperature reached!");
-//            tempComplete = true;
-//        }
 
         if (phComplete) {
             stopLogger();
@@ -209,7 +214,6 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         fakeTemp = 32.0f;
 
         phComplete = false;
-        tempComplete = false;
         progress_bar_view.setProgress(0);
 
         pHvalues.clear();
