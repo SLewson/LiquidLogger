@@ -3,15 +3,12 @@ package com.example.slewson.liquidlogger;
 import android.app.AlertDialog;
 import android.app.NotificationManager;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -23,7 +20,6 @@ import com.example.slewson.liquidlogger.model.RecipeObject;
 import com.parse.ParseObject;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -40,8 +36,8 @@ import lecho.lib.hellocharts.view.LineChartView;
 /**
  * Created by Marie on 5/21/2015.
  */
-public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiCallback{
-    private LiquidLogAPI liquidLogAPI;
+public class LiveFragment extends Fragment implements DataAPI.DataApiCallback{
+    private DataAPI liquidLogAPI;
     private RecipeObject recipe = null;
 
     private TextView recipeName_textview = null;
@@ -64,17 +60,14 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
 
     private boolean inProgress = false;
     private boolean phComplete = false;
-
-    private float fakeTimer = 0;
-    private double fakepH = 7.0;
-    private double fakeTemp = 32.0;
+    private float timeInterval = 0;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Get the view from live_layout.xml
         View view = inflater.inflate(R.layout.live_layout, container, false);
-        liquidLogAPI = new LiquidLogAPI(this);
+        liquidLogAPI = new DataAPI(this);
         // TODO: Use real recipes
         recipe = new RecipeObject("DEFAULT", 5.1, 50.0, "", "");
 
@@ -103,8 +96,8 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         goalpH_textview.setText(recipe.getpH().toString());
         goalTemp_textview.setText(recipe.getTemp().toString());
 
-        pH_textview.setText("" + fakepH);
-        temp_textview.setText("" + fakeTemp);
+        pH_textview.setText("");
+        temp_textview.setText("");
 
         start_button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -132,30 +125,6 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         inProgress = true;
     }
 
-    private void updateProgress() {
-        this.getActivity().runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                pH_textview.setText("" + fakepH);
-                temp_textview.setText("" + fakeTemp);
-            }
-        });
-
-        progress_bar_view.setProgress((int) (((7.0 - fakepH) / (7.0 - recipe.getpH())) * 100.0));
-
-        // TODO: adjust jenk calculations
-        if (Math.abs(fakepH - recipe.getpH()) <= 0.5 && !phComplete) {
-            displayNotification("Goal pH reached!");
-            phComplete = true;
-            progress_bar_view.setProgress(100);
-        }
-
-        if (phComplete) {
-            stopLogger();
-            displayNotification("Coffee Complete!");
-        }
-    }
-
     private void generateData() {
         List<Line> lines = new ArrayList<>();
         Line pHLine = new Line(pHvalues)
@@ -164,31 +133,11 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
                 .setStrokeWidth(3);
         lines.add(pHLine);
 
-//        ArrayList<PointValue> goalpHValues = new ArrayList<>();
-//        for (PointValue pv : pHvalues) {
-//            goalpHValues.add(new PointValue(pv.getX(), recipe.getpH().floatValue()));
-//        }
-//        Line goalpHLine = new Line(goalpHValues)
-//                .setColor(Color.BLUE)
-//                .setStrokeWidth(1)
-//                .setHasPoints(false);
-//        lines.add(goalpHLine);
-
         Line tempLine = new Line(tempValues)
                 .setColor(Color.RED)
                 .setCubic(false)
                 .setStrokeWidth(3);
         lines.add(tempLine);
-
-//        ArrayList<PointValue> goalTempValues = new ArrayList<>();
-//        for (PointValue pv : tempValues) {
-//            goalTempValues.add(new PointValue(pv.getX(), recipe.getTemp().floatValue() * scale - offset));
-//        }
-//        Line goalTempLine = new Line(goalTempValues)
-//                .setColor(Color.RED)
-//                .setStrokeWidth(1)
-//                .setHasPoints(false);
-//        lines.add(goalTempLine);
 
         LineChartData data = new LineChartData(lines);
 
@@ -209,9 +158,7 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
     }
 
     private void reset() {
-        fakeTimer = 0f;
-        fakepH = 7.0f;
-        fakeTemp = 32.0f;
+        timeInterval = 0f;
 
         phComplete = false;
         progress_bar_view.setProgress(0);
@@ -240,68 +187,6 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
         pv.set(pv.getX(), pv.getY() * scale - offset);
         tempValues.add(pv);
         generateData();
-    }
-
-    private void startCoffeeRefreshTimer() {
-        timer = new Timer();
-        timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                Log.d("MainActivity", "Getting coffee status");
-                liquidLogAPI.getCoffeeStatus();
-                if (inProgress) {
-                    fakepH -= 0.5;
-                    fakeTemp += 2.0;
-                    addPhValue(new PointValue(fakeTimer, (float) fakepH));
-                    addTempValue(new PointValue(fakeTimer, (float) fakeTemp));
-                    updateProgress();
-                    fakeTimer += 1f;
-                }
-            }
-        }, 0, 1500);
-    }
-
-    private void displayCoffeeStatus(LiquidLogAPI.CoffeeStatus coffeeStatus) {
-        String status = "Temp: " + coffeeStatus.getTemp() + ", pH: " + coffeeStatus.getpH();
-        pH_textview.setText("" + coffeeStatus.getpH());
-        temp_textview.setText("" + coffeeStatus.getTemp());
-
-        Log.d("MainActivity", status);
-    }
-
-    private void displayNotification(String message) {
-        NotificationCompat.Builder mBuilder =
-                new NotificationCompat.Builder(getActivity())
-                        .setContentTitle("Liquid Logger")
-                        .setContentText(message)
-                        .setSmallIcon(R.drawable.coffee);
-
-        // Sets an ID for the notification
-        int mNotificationId = 001;
-        // Gets an instance of the NotificationManager service
-        NotificationManager mNotifyMgr = (NotificationManager) getActivity().getSystemService(getActivity().NOTIFICATION_SERVICE);
-        // Builds the notification and issues it.
-        mNotifyMgr.notify(mNotificationId, mBuilder.build());
-    }
-
-    @Override
-    public void onLiquidLogApiError(String error) {
-        Log.d("MainActivity", "API Error: " + error);
-
-    }
-
-    @Override
-    public void onLiquidLogApiStatusResponse(LiquidLogAPI.CoffeeStatus coffeeStatus) {
-        displayCoffeeStatus(coffeeStatus);
-        Log.d("MainActivity", "success for some reason");
-        if (coffeeStatus.getpH() >= 4.8 && coffeeStatus.getpH() <= 5.2 && !notified) {
-            displayNotification("Your coffee is ready!");
-            notified = true;
-        }
-        else if (coffeeStatus.getpH() < 4.5) {
-            Log.d("MainActivity", "Notify");
-            displayNotification("Sorry, your coffee is ruined");
-        }
     }
 
     public void selectCurrentRecipe() {
@@ -354,5 +239,78 @@ public class LiveFragment extends Fragment implements LiquidLogAPI.LiquidLogApiC
             float scaledValue = (value + sub) / scale;
             return super.formatValueForAutoGeneratedAxis(formattedValue, scaledValue, this.decimalDigits);
         }
+    }
+
+    @Override
+    public void onDataApiError(String error) {
+        Log.d("MainActivity", "API Error: " + error);
+
+    }
+
+    @Override
+    public void onDataApiStatusResponse(DataAPI.CoffeeStatus coffeeStatus) {
+        displayCoffeeStatus(coffeeStatus);
+        updateProgress(coffeeStatus);
+    }
+
+    private void startCoffeeRefreshTimer() {
+        timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (inProgress) {
+                    Log.d("MainActivity", "Getting coffee status");
+                    liquidLogAPI.getCoffeeStatus();
+                    timeInterval += 1f;
+                }
+            }
+        }, 0, 1500);
+    }
+
+    private void displayCoffeeStatus(final DataAPI.CoffeeStatus coffeeStatus) {
+        // Add points to graph
+        addPhValue(new PointValue(timeInterval, coffeeStatus.getpH().floatValue()));
+        addTempValue(new PointValue(timeInterval, coffeeStatus.getTemp().floatValue()));
+
+        // update current value displays
+        this.getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                pH_textview.setText("" + coffeeStatus.getpH());
+                temp_textview.setText("" + coffeeStatus.getTemp());
+            }
+        });
+
+        String status = "Temp: " + coffeeStatus.getTemp() + ", pH: " + coffeeStatus.getpH();
+        Log.d("MainActivity", status);
+    }
+
+    private void updateProgress(final DataAPI.CoffeeStatus status) {
+        progress_bar_view.setProgress((int) (((7.0 - status.getpH()) / (7.0 - recipe.getpH())) * 100.0));
+
+        if (Math.abs(status.getpH() - recipe.getpH()) <= 0.5 && !phComplete) {
+            phComplete = true;
+            progress_bar_view.setProgress(100);
+        }
+
+        if (phComplete) {
+            stopLogger();
+            displayNotification("Coffee Complete!");
+        }
+    }
+
+    private void displayNotification(String message) {
+        NotificationCompat.Builder mBuilder =
+                new NotificationCompat.Builder(getActivity())
+                        .setContentTitle("Liquid Logger")
+                        .setContentText(message)
+                        .setSmallIcon(R.drawable.coffee);
+
+        // Sets an ID for the notification
+        int mNotificationId = 001;
+        // Gets an instance of the NotificationManager service
+        NotificationManager mNotifyMgr = (NotificationManager) getActivity().getSystemService(getActivity().NOTIFICATION_SERVICE);
+        // Builds the notification and issues it.
+        mNotifyMgr.notify(mNotificationId, mBuilder.build());
     }
 }
